@@ -8,15 +8,29 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
+	"os"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
 func main() {
+	path := os.Getenv("PATH")
+	if path == "" {
+		path = "./ssh-honeypot.log"
+	}
 
-	port := 22
+	logFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("Unable to open log file: %v", err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "22"
+	}
 
 	key, err := generateKeyPair()
 	if err != nil {
@@ -36,12 +50,11 @@ func main() {
 
 	config.AddHostKey(key)
 
-	// Listen on port 22
-	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
+	listener, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
-		log.Fatalf("Failed to listen on port %d: %v", port, err)
+		log.Fatalf("Failed to listen on port %s: %v", port, err)
 	}
-	log.Printf("Listening on port %d...", port)
+	log.Printf("Listening on port %s...", port)
 
 	for {
 		conn, err := listener.Accept()
@@ -55,19 +68,16 @@ func main() {
 }
 
 func generateKeyPair() (ssh.Signer, error) {
-	// Generate a new RSA private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
 	}
 
-	// Encode the private key to PEM format
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
 
-	// Parse the PEM encoded private key to get an ssh.Signer
 	signer, err := ssh.ParsePrivateKey(privateKeyPEM)
 	if err != nil {
 		return nil, err
