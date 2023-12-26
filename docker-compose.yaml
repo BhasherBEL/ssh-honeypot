@@ -1,6 +1,6 @@
 services:
   ssh-honeypot:
-    build: .
+    image: git.bhasher.com/bhasher/ssh-honeypot:latest
     ports:
     - "2222:22"
     volumes:
