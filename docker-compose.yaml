@@ -2,4 +2,6 @@ services:
   ssh-honeypot:
     build: .
     ports:
-      - "2222:22"
+    - "2222:22"
+    volumes:
+    - ./data:/app/data

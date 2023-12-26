@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"time"
@@ -17,15 +17,16 @@ import (
 func main() {
 	path := os.Getenv("PATH")
 	if path == "" {
-		path = "./ssh-honeypot.log"
+		path = "/var/log/ssh-honeypot.log"
 	}
 
 	logFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatalf("Unable to open log file: %v", err)
+		panic(err)
 	}
 	defer logFile.Close()
-	log.SetOutput(logFile)
+
+	w := bufio.NewWriter(logFile)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -34,7 +35,7 @@ func main() {
 
 	key, err := generateKeyPair()
 	if err != nil {
-		log.Fatalf("Failed to generate key pair: %v", err)
+		panic(err)
 	}
 
 	config := &ssh.ServerConfig{
@@ -43,7 +44,14 @@ func main() {
 			if err != nil {
 				ip = c.RemoteAddr().String()
 			}
-			log.Printf("[%s] \"honeypot connection attempt: ssh - %s - %s - %s\"\n", time.Now().Format("2006-01-02 15:04:05.000"), ip, c.User(), string(pass))
+			_, err = fmt.Fprintf(w, "[%s] \"honeypot connection attempt: ssh - %s - %s - %s\"\n", time.Now().Format("2006-01-02 15:04:05.000"), ip, c.User(), string(pass))
+
+			if err != nil {
+				fmt.Printf("Error writing to log file: %v", err)
+			}
+
+			w.Flush()
+
 			return nil, fmt.Errorf("password rejected for %q", c.User())
 		},
 	}
@@ -52,14 +60,14 @@ func main() {
 
 	listener, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
-		log.Fatalf("Failed to listen on port %s: %v", port, err)
+		panic(err)
 	}
-	log.Printf("Listening on port %s...", port)
+	fmt.Printf("Listening on port %s...", port)
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Printf("Failed to accept incoming connection: %s", err)
+			fmt.Printf("Failed to accept incoming connection: %s", err)
 			continue
 		}
 
