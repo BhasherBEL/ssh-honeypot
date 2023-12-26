@@ -1,0 +1,5 @@
+services:
+  ssh-honeypot:
+    build: .
+    ports:
+      - "2222:22"
