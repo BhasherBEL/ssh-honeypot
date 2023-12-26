@@ -15,9 +15,9 @@ import (
 )
 
 func main() {
-	path := os.Getenv("PATH")
+	path := os.Getenv("LOGPATH")
 	if path == "" {
-		path = "/var/log/ssh-honeypot.log"
+		path = "./data/ssh-honeypot.log"
 	}
 
 	logFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -44,7 +44,7 @@ func main() {
 			if err != nil {
 				ip = c.RemoteAddr().String()
 			}
-			_, err = fmt.Fprintf(w, "[%s] \"honeypot connection attempt: ssh - %s - %s - %s\"\n", time.Now().Format("2006-01-02 15:04:05.000"), ip, c.User(), string(pass))
+			_, err = fmt.Fprintf(w, "[%s] \"honeypot login attempt: ssh - %s - %s - %s\"\n", time.Now().Format("2006-01-02 15:04:05.000"), ip, c.User(), string(pass))
 
 			if err != nil {
 				fmt.Printf("Error writing to log file: %v", err)
@@ -62,7 +62,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Listening on port %s...", port)
+	fmt.Printf("Listening on port %s...\n", port)
 
 	for {
 		conn, err := listener.Accept()
@@ -70,6 +70,15 @@ func main() {
 			fmt.Printf("Failed to accept incoming connection: %s", err)
 			continue
 		}
+
+		ip, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+		if err != nil {
+			ip = conn.RemoteAddr().String()
+		}
+
+		fmt.Fprintf(w, "[%s] \"honeypot connection: ssh - %s\"\n", time.Now().Format("2006-01-02 15:04:05.000"), ip)
+
+		w.Flush()
 
 		go handleConn(conn, config)
 	}
